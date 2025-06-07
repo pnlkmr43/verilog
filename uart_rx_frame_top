@@ -1,0 +1,31 @@
+module top_uart_rx_led(
+    input clk,         // 100 MHz clock
+    input uart_rx_pin, // RX from external UART device
+    output reg [7:0] rx_data_my,
+    output reg led     // LED ON = frame received
+);
+    wire [7:0] rx_data;
+    wire valid;
+
+    reg [23:0] timer = 0; // To hold LED ON for some time
+
+    uart_rx uart_rx_inst (
+        .clk(clk),
+        .rx(uart_rx_pin),
+        .data(rx_data),
+        .valid(valid)
+    );
+
+    always @(posedge clk) begin
+        if (valid) begin
+            led <= 1;
+            rx_data_my <= rx_data;
+            timer <= 24_000_000; // ~0.24 sec at 100 MHz
+        end else if (timer > 0) begin
+            timer <= timer - 1;
+            led <= 1;
+        end else begin
+            led <= 0;
+        end
+    end
+endmodule
