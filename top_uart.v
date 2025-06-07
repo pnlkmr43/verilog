@@ -19,13 +19,19 @@ module top_uart_send_once(
     );
 
 
+
     // Generate single send pulse after some delay (simulate button press)
     always @(posedge clk) begin
         counter <= counter + 1;
         
+        if (counter==100000000)
+            data <= data + 1;
+        
         if (counter == 100000000) begin // after 1 sec
             counter <= 0;
             trigger <= 1;
+            
+
         end else begin
             trigger <= 0;
         end
