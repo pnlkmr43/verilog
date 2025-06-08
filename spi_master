@@ -1,0 +1,39 @@
+module spi_master(
+    input  wire clk,           // 100 MHz
+    input  wire start,
+    input  wire [7:0] data_in, // MSB=DC flag + 7-bit command/data
+    output reg  mosi,
+    output reg  sclk,
+    output reg  busy
+);
+    reg [7:0] shift;
+    reg [2:0] bitcnt;
+    reg [3:0] clkdiv;
+
+    localparam CLK_DIV = 6;  // ~100 MHz / (2*(6+1)) ≈ 7.14 MHz
+
+    always @(posedge clk) begin
+        if (start && !busy) begin
+            busy   <= 1;
+            shift  <= data_in;
+            bitcnt <= 7;
+            clkdiv <= 0;
+            sclk   <= 0;
+        end else if (busy) begin
+            clkdiv <= clkdiv + 1;
+            if (clkdiv == CLK_DIV) begin
+                clkdiv <= 0;
+                sclk   <= ~sclk;
+                if (sclk) begin
+                    mosi <= shift[bitcnt];
+                    if (bitcnt == 0)
+                        busy <= 0;
+                    else
+                        bitcnt <= bitcnt - 1;
+                end
+            end
+        end else begin
+            sclk <= 0;
+        end
+    end
+endmodule
