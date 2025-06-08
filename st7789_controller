@@ -1,0 +1,98 @@
+module st7789_controller(
+
+    input  wire clk, resetn,
+    output reg  send,
+    output reg [7:0] data,
+    input  wire busy,
+    output reg  done
+);
+
+    localparam X0 = 20, Y0 = 20, W = 64, H = 64;
+    localparam PIXELS = W*H;
+    localparam COLOR = 16'h001F; // Blue: high=0x00, low=0x1F
+    
+    reg [7:0] state;
+    reg [19:0] delay;
+    reg [15:0] pixcnt;
+    
+    reg [7:0] x_end;
+    reg [7:0] y_end;
+
+
+
+    always @(posedge clk) begin
+        if (!resetn) begin
+            state <= 0; delay <= 0; send <= 0; done <= 0; pixcnt <= 0;
+        end else case (state)
+            // Reset
+            0: if (!busy) begin data<=8'h01; send<=1; state<=1; end
+            1: begin send<=0; delay<=0; state<=2; end
+            2: if (delay<500000) delay<=delay+1; else state<=3;
+
+            // Sleep Out
+            3: if (!busy) begin data<=8'h11; send<=1; state<=4; end
+            4: begin send<=0; delay<=0; state<=5; end
+            5: if (delay<500000) delay<=delay+1; else state<=6;
+
+            // COLMOD (16-bit)
+            6: if (!busy) begin data<=8'h3A; send<=1; state<=7; end
+            7: begin send<=0; state<=8; end
+            8: if (!busy) begin data<=8'h55 | 8'h80; send<=1; state<=9; end
+            9: begin send<=0; state<=10; end
+
+            // MADCTL (RGB)
+            10: if (!busy) begin data<=8'h36; send<=1; state<=11; end
+            11: begin send<=0; state<=12; end
+            12: if (!busy) begin data<=8'h08 | 8'h80; send<=1; state<=13; end
+            13: begin send<=0; state<=14; end
+
+            // Display On
+            14: if (!busy) begin data<=8'h29; send<=1; state<=15; end
+            15: begin send<=0; state<=16; end
+
+            // Column Address
+            16: if (!busy) begin data<=8'h2A; send<=1; state<=17; end
+            17: begin send<=0; state<=18; end
+            18: if (!busy) begin data<=X0[7:0] | 8'h80; send<=1; state<=19; end
+            19: begin send<=0; state<=20; end
+            
+            20: if (!busy) 
+                begin 
+                    x_end <= (X0+W-1);                
+                    data <= x_end[7:0] | 8'h80;                     
+                    send<=1; state<=21; 
+                
+                end
+            21: begin send<=0; state<=22; end
+
+            // Row Address
+            22: if (!busy) begin data<=8'h2B; send<=1; state<=23; end
+            23: begin send<=0; state<=24; end
+            24: if (!busy) begin data<=Y0[7:0] | 8'h80; send<=1; state<=25; end
+            25: begin send<=0; state<=26; end
+            
+            26: 
+                if (!busy) 
+                begin 
+                    y_end <= (Y0+W-1);
+                    data <= x_end[7:0]|(8'h80); 
+                    send<=1; 
+                    state<=27; 
+                    end
+            
+            27: begin send<=0; state<=28; end
+
+            // RAMWR
+            28: if (!busy) begin data<=8'h2C; send<=1; state<=29; end
+            29: begin send<=0; pixcnt<=0; state<=30; end
+
+            // Send pixels
+            30: if (!busy) begin data<= (COLOR[15:8] | 8'h80); send<=1; state<=31; end
+            31: begin send<=0; state<=32; end
+            32: if (!busy) begin data<= (COLOR[7:0] | 8'h80); send<=1; state<=33; end
+            33: begin send<=0; pixcnt <= pixcnt + 1; 
+                  if (pixcnt < PIXELS-1) state<=30; else state<=40; end
+            40: done <= 1;
+        endcase
+    end
+endmodule
