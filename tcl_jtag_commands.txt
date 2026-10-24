@@ -1,0 +1,54 @@
+
+create_hw_axi_txn -address <hex_address> -type <READ|WRITE> -len <burst_length> <name> <hw_axi_object>
+
+
+
+reset# Write 32-bit data to AXI slave
+create_hw_axi_txn write_txn \
+    [get_hw_axis] \
+    -type WRITE \
+    -address 40000000 \
+    -data 12345678
+
+# Execute the transaction
+run_hw_axi [get_hw_axi_txns write_txn]
+
+
+
+create_hw_axi_txn read_txn \
+    [get_hw_axis] \
+    -type READ \
+    -address 41000000 \
+    -len 1
+
+run_hw_axi [get_hw_axi_txns read_txn]
+
+# Display the read data
+report_hw_axi_txn [get_hw_axi_txns read_txn]
+
+
+considering BASE= 40000000 
+
+;==================================(Write)=======================================================
+create_hw_axi_txn write_txn [get_hw_axis] -type WRITE -address 40000000 -data 12345678
+
+;force used to create a second command 
+create_hw_axi_txn write_txn -force [get_hw_axis] -type WRITE -address 40000000 -data f000_0000
+create_hw_axi_txn write_txn -force [get_hw_axis] -type WRITE -address 40000000 -data 0000_a5a5
+create_hw_axi_txn write_txn -force [get_hw_axis] -type WRITE -address 40000000 -data 0000_f000
+create_hw_axi_txn write_txn -force [get_hw_axis] -type WRITE -address 40000000 -data 0000_1000
+
+run_hw_axi [get_hw_axi_txns write_txn]
+;=================================================================================================
+
+;==================================(Read)=========================================================
+create_hw_axi_txn write_txn -force [get_hw_axis] -type WRITE -address 40000004 -data ffff_ffff
+run_hw_axi write_txn
+
+create_hw_axi_txn read_txn [get_hw_axis] -type READ -address 40000004 -len 1
+
+create_hw_axi_txn read_txn [get_hw_axis] -force -type READ -address 40000000 -len 1
+
+run_hw_axi [get_hw_axi_txns read_txn]
+;=================================================================================================
+
